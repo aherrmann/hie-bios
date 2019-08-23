@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 fullname=$(bazel query "$1")
-attr=$(bazel query "kind(haskell_*, attr('srcs', $fullname, ${fullname//:*/}:*))")
-bazel build "$attr@repl" --experimental_show_artifacts 2>&1 | sed -ne '/>>>/ s/^>>>\(.*\)$/\1/ p' | xargs tail -1
+attr=$(bazel query "kind(haskell_*, attr('srcs', $fullname, ${fullname//:*/}:*))" | head -1)
+bazel build "$attr" --aspects @rules_haskell//haskell:repl.bzl%haskell_repl_aspect --output_groups=hie_bios --experimental_show_artifacts 2>&1 | sed -ne '/>>>/ s/^>>>\(.*\)$/\1/ p'
 

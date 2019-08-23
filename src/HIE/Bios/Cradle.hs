@@ -244,12 +244,26 @@ rulesHaskellAction work_dir fp = do
   check <- readFile wrapper_fp
   traceM check
   let rel_path = makeRelative work_dir fp
-  traceM rel_path
-  (ex, args, stde) <-
+  (ex, stdo, stde) <-
       withCurrentDirectory work_dir (readProcessWithExitCode wrapper_fp [rel_path] [])
-  let args'  = filter (/= '\'') args
-  let args'' = filter (/= "\"$GHCI_LOCATION\"") (words args')
-  return (ex, stde, args'')
+  (args, env_vars) <- case lines stdo of
+    [args_fp, env_fp] -> do
+      args <- readArgs args_fp
+      env_vars <- readEnv env_fp
+      pure (args, env_vars)
+    _ -> fail $ "Invalid hie-bios aspect output: " ++ stde
+  traceM ("args: " ++ show args)
+  traceM ("env: " ++ show env_vars)
+  return (ex, stde, args)
+  where
+    readArgs :: FilePath -> IO [String]
+    readArgs args_fp = lines <$> readFile args_fp
+    readEnv :: FilePath -> IO [(String, String)]
+    readEnv env_fp = mapM readEnvEntry =<< lines <$> readFile env_fp
+    readEnvEntry :: String -> IO (String, String)
+    readEnvEntry s = case break (== ' ') s of
+      ("", _) -> fail "Empty environment variable name."
+      (name, val) -> pure (name, dropWhile (== ' ') val)
 
 
 ------------------------------------------------------------------------------
